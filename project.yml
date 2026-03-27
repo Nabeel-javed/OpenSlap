@@ -1,0 +1,79 @@
+# XcodeGen Project Specification for OpenSlap
+# Generate the Xcode project: `xcodegen generate`
+# Install XcodeGen: `brew install xcodegen`
+
+name: OpenSlap
+
+options:
+  xcodeVersion: "16.0"
+  deploymentTarget:
+    macOS: "14.0"
+  defaultConfig: Debug
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ARCHS: arm64
+    # Apple Silicon only — no Rosetta, no Intel
+    EXCLUDED_ARCHS[sdk=macosx*]: x86_64
+
+configs:
+  Debug: debug
+  Release: release
+
+targets:
+
+  # ─────────────────────────────────────────────
+  # Main App — SwiftUI menu bar application
+  # ─────────────────────────────────────────────
+  OpenSlap:
+    type: application
+    platform: macOS
+    sources:
+      - path: OpenSlap
+        excludes:
+          - "**/*.plist"
+          - "**/*.m4a"
+          - "**/*.mp3"
+          - "**/*.wav"
+          - "**/*.md"
+      - path: Shared
+      - path: OpenSlap/Resources/Sounds
+        buildPhase: resources
+        type: folder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openslap.app
+        INFOPLIST_FILE: OpenSlap/Info.plist
+        CODE_SIGN_ENTITLEMENTS: OpenSlap/OpenSlap.entitlements
+        PRODUCT_NAME: OpenSlap
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # No dock icon — menu bar only
+        GENERATE_INFOPLIST_FILE: false
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+    info:
+      path: OpenSlap/Info.plist
+    entitlements:
+      path: OpenSlap/OpenSlap.entitlements
+
+  # ─────────────────────────────────────────────
+  # Privileged Daemon — reads accelerometer
+  # ─────────────────────────────────────────────
+  OpenSlapDaemon:
+    type: tool
+    platform: macOS
+    sources:
+      - path: OpenSlapDaemon
+        excludes:
+          - "**/*.plist"
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openslap.daemon
+        INFOPLIST_FILE: OpenSlapDaemon/Info.plist
+        PRODUCT_NAME: OpenSlapDaemon
+        GENERATE_INFOPLIST_FILE: false
+    info:
+      path: OpenSlapDaemon/Info.plist

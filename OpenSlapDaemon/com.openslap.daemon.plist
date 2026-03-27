@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchDaemon plist for the OpenSlap sensor daemon.
+
+  This file is installed to /Library/LaunchDaemons/ by the install script.
+  It tells launchd to:
+    1. Run the daemon as root (required for IOKit HID access)
+    2. Start automatically at boot (RunAtLoad)
+    3. Restart if it crashes (KeepAlive)
+    4. Expose a Mach service for future XPC migration
+
+  To load manually:  sudo launchctl load /Library/LaunchDaemons/com.openslap.daemon.plist
+  To unload:         sudo launchctl unload /Library/LaunchDaemons/com.openslap.daemon.plist
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.openslap.daemon</string>
+
+	<key>Program</key>
+	<string>/usr/local/bin/OpenSlapDaemon</string>
+
+	<!-- Run at system boot -->
+	<key>RunAtLoad</key>
+	<true/>
+
+	<!-- Restart if the daemon crashes -->
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+
+	<!-- Throttle restarts to prevent CPU spin on persistent failures -->
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+
+	<!-- Log stdout/stderr for debugging -->
+	<key>StandardOutPath</key>
+	<string>/var/log/openslap-daemon.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/openslap-daemon.log</string>
+
+	<!-- Environment variables -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/local/bin:/usr/bin:/bin</string>
+	</dict>
+</dict>
+</plist>
