@@ -6,6 +6,21 @@
 import Foundation
 import Combine
 
+// MARK: - Leaderboard Entry
+
+/// A single entry in the force leaderboard.
+struct LeaderboardEntry: Codable, Identifiable {
+    let id: UUID
+    let force: Double
+    let date: Date
+
+    init(force: Double, date: Date = Date()) {
+        self.id = UUID()
+        self.force = force
+        self.date = date
+    }
+}
+
 final class StatsTracker: ObservableObject {
 
     // MARK: - Published Stats
@@ -31,21 +46,27 @@ final class StatsTracker: ObservableObject {
     /// Current slaps-per-minute rate (rolling 1-minute window).
     @Published private(set) var currentRate: Double = 0
 
+    /// Top 10 hardest slaps ever, sorted by force descending.
+    @Published private(set) var leaderboard: [LeaderboardEntry] = []
+
     // MARK: - Internal State
 
     private var sessionForces: [Double] = []
     private var recentTimestamps: [Date] = []
     private var rateTimer: Timer?
+    private let maxLeaderboardSize = 10
 
     init() {
         loadLifetimeStats()
+        loadLeaderboard()
         startRateTimer()
     }
 
     // MARK: - Recording
 
-    /// Record a new slap event.
-    func recordSlap(force: Double) {
+    /// Record a new slap event. Returns true if it made the leaderboard.
+    @discardableResult
+    func recordSlap(force: Double) -> Bool {
         let now = Date()
 
         sessionCount += 1
@@ -66,7 +87,11 @@ final class StatsTracker: ObservableObject {
             firstSlapDate = now
         }
 
+        // Check if this slap makes the leaderboard
+        let madeLeaderboard = updateLeaderboard(force: force, date: now)
+
         saveLifetimeStats()
+        return madeLeaderboard
     }
 
     /// Reset session stats (on app relaunch).
@@ -84,7 +109,53 @@ final class StatsTracker: ObservableObject {
         lifetimeCount = 0
         peakForceEver = 0
         firstSlapDate = nil
+        leaderboard = []
         saveLifetimeStats()
+        saveLeaderboard()
+    }
+
+    // MARK: - Leaderboard
+
+    /// Insert a slap into the leaderboard if it qualifies.
+    private func updateLeaderboard(force: Double, date: Date) -> Bool {
+        let entry = LeaderboardEntry(force: force, date: date)
+
+        if leaderboard.count < maxLeaderboardSize {
+            leaderboard.append(entry)
+            leaderboard.sort { $0.force > $1.force }
+            saveLeaderboard()
+            return true
+        }
+
+        // Check if this beat the weakest entry on the board
+        if let weakest = leaderboard.last, force > weakest.force {
+            leaderboard.removeLast()
+            leaderboard.append(entry)
+            leaderboard.sort { $0.force > $1.force }
+            saveLeaderboard()
+            return true
+        }
+
+        return false
+    }
+
+    /// The minimum force needed to get on the leaderboard.
+    var leaderboardThreshold: Double {
+        if leaderboard.count < maxLeaderboardSize { return 0 }
+        return leaderboard.last?.force ?? 0
+    }
+
+    private func saveLeaderboard() {
+        if let data = try? JSONEncoder().encode(leaderboard) {
+            UserDefaults.standard.set(data, forKey: "stats.leaderboard")
+        }
+    }
+
+    private func loadLeaderboard() {
+        if let data = UserDefaults.standard.data(forKey: "stats.leaderboard"),
+           let entries = try? JSONDecoder().decode([LeaderboardEntry].self, from: data) {
+            leaderboard = entries.sorted { $0.force > $1.force }
+        }
     }
 
     // MARK: - Fun Stats

@@ -10,6 +10,7 @@ struct MenuBarView: View {
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var sensorBridge: SensorBridge
     @EnvironmentObject var statsTracker: StatsTracker
+    @EnvironmentObject var comboTracker: ComboTracker
 
     @State private var showStats = false
 
@@ -149,6 +150,23 @@ struct MenuBarView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            // Combo indicator
+            if comboTracker.isComboActive {
+                HStack {
+                    Text("COMBO x\(comboTracker.currentCombo)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Text("Best: x\(comboTracker.bestCombo)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+                .background(.orange.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
             // Quick stats

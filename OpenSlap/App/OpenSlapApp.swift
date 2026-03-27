@@ -9,6 +9,7 @@
 // @StateObject properties are fully available.
 
 import SwiftUI
+import AppKit
 import Combine
 
 @main
@@ -26,12 +27,14 @@ struct OpenSlapApp: App {
                 .environmentObject(controller.audioManager)
                 .environmentObject(controller.statsTracker)
                 .environmentObject(controller.usbMonitor)
+                .environmentObject(controller.comboTracker)
                 .environmentObject(controller)
         } label: {
             MenuBarLabel(
                 isConnected: controller.sensorBridge.isDaemonConnected,
                 isMockMode: controller.sensorBridge.isMockMode,
-                sessionCount: controller.statsTracker.sessionCount
+                sessionCount: controller.statsTracker.sessionCount,
+                comboCount: controller.comboTracker.currentCombo
             )
         }
         .menuBarExtraStyle(.window)
@@ -68,11 +71,17 @@ struct MenuBarLabel: View {
     let isConnected: Bool
     let isMockMode: Bool
     let sessionCount: Int
+    let comboCount: Int
 
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: iconName)
-            if sessionCount > 0 {
+            if comboCount >= 2 {
+                // Show combo during active combo
+                Text("x\(comboCount)")
+                    .monospacedDigit()
+                    .foregroundStyle(.orange)
+            } else if sessionCount > 0 {
                 Text("\(sessionCount)")
                     .monospacedDigit()
             }
@@ -80,7 +89,9 @@ struct MenuBarLabel: View {
     }
 
     private var iconName: String {
-        if isMockMode {
+        if comboCount >= 2 {
+            return "hand.raised.fingers.spread.fill" // Active combo icon
+        } else if isMockMode {
             return "hand.raised.fingers.spread.fill"
         } else if isConnected {
             return "hand.raised.fill"
@@ -102,6 +113,8 @@ final class AppController: ObservableObject {
     let audioManager = AudioManager()
     let statsTracker = StatsTracker()
     let usbMonitor = USBMonitor()
+    let comboTracker = ComboTracker()
+    let screenFlash = ScreenFlash()
 
     @Published var needsOnboarding: Bool
 
@@ -139,13 +152,37 @@ final class AppController: ObservableObject {
         // Load initial sound pack
         audioManager.loadSounds(for: settings.soundMode, customFolder: settings.customSoundFolder, settings: settings)
 
-        // Core pipeline: impact → play sound + record stats
+        // Core pipeline: impact → sound + stats + flash + combo
         sensorBridge.impactPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
                 guard let self, settings.detectionEnabled else { return }
-                audioManager.playSlap(force: event.force)
+
+                // 1. Track combo
+                let combo = comboTracker.recordSlap(force: event.force)
+
+                // 2. Play sound (combo multiplies the perceived force for louder audio)
+                let comboBoost = 1.0 + Double(max(combo - 1, 0)) * 0.15
+                audioManager.playSlap(force: event.force * comboBoost)
+
+                // 3. Record stats
                 statsTracker.recordSlap(force: event.force)
+
+                // 4. Screen flash (combo makes it more intense)
+                let flashForce = event.force * comboBoost
+                screenFlash.flash(force: flashForce)
+            }
+            .store(in: &cancellables)
+
+        // Combo milestone announcements — play the milestone text via TTS
+        // for dramatic effect ("TRIPLE!", "UNSTOPPABLE!", etc.)
+        comboTracker.comboMilestone
+            .receive(on: DispatchQueue.main)
+            .sink { event in
+                // Use macOS speech synthesis for combo announcements
+                let synth = NSSpeechSynthesizer()
+                synth.rate = 200
+                synth.startSpeaking(event.milestone.announcement)
             }
             .store(in: &cancellables)
 

@@ -1,4 +1,4 @@
-// StatsView.swift — Detailed slap statistics
+// StatsView.swift — Detailed slap statistics + force leaderboard
 // OpenSlap – macOS accelerometer-based slap detection
 
 import SwiftUI
@@ -34,6 +34,39 @@ struct StatsView: View {
                 statCard(label: "Peak (ever)", value: "\(String(format: "%.1f", statsTracker.peakForceEver))g", icon: "star")
                 statCard(label: "Average", value: "\(String(format: "%.1f", statsTracker.averageForceSession))g", icon: "equal")
                 statCard(label: "Rate", value: "\(String(format: "%.0f", statsTracker.currentRate))/min", icon: "speedometer")
+            }
+
+            // Force Leaderboard
+            if !statsTracker.leaderboard.isEmpty {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "trophy.fill")
+                            .foregroundStyle(.yellow)
+                        Text("Hardest Slaps")
+                            .font(.caption.bold())
+                    }
+
+                    ForEach(Array(statsTracker.leaderboard.enumerated()), id: \.element.id) { index, entry in
+                        HStack(spacing: 8) {
+                            Text("\(index + 1).")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(index == 0 ? .yellow : .secondary)
+                                .frame(width: 20, alignment: .trailing)
+
+                            Text("\(String(format: "%.2f", entry.force))g")
+                                .font(.caption.bold().monospacedDigit())
+                                .foregroundStyle(index == 0 ? .primary : .secondary)
+
+                            Spacer()
+
+                            Text(entry.date, style: .relative)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
             }
 
             if let firstDate = statsTracker.firstSlapDate {
