@@ -16,3 +16,6 @@ OpenSlap.xcodeproj/
 
 # Build products
 .build/
+
+# Distribution
+dist/

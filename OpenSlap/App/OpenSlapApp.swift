@@ -174,17 +174,7 @@ final class AppController: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Combo milestone announcements — play the milestone text via TTS
-        // for dramatic effect ("TRIPLE!", "UNSTOPPABLE!", etc.)
-        comboTracker.comboMilestone
-            .receive(on: DispatchQueue.main)
-            .sink { event in
-                // Use macOS speech synthesis for combo announcements
-                let synth = NSSpeechSynthesizer()
-                synth.rate = 200
-                synth.startSpeaking(event.milestone.announcement)
-            }
-            .store(in: &cancellables)
+        // Combo milestones are shown in the menu bar label (no TTS)
 
         // Reload sounds when mode changes
         settings.$soundMode
